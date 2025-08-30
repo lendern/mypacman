@@ -1,7 +1,13 @@
 # Pac-Man-like Game
 
 ## Overview
-This project is a terminal-based Pac-Man-like game where players control a character navigating through a game board. The game is designed to be played in a shell environment with a resolution of 80x24 characters by default.
+Terminal-based Pac-Man-like game. The player (PP) moves inside a double-line bordered area. Default terminal resolution target is 80x24.
+
+## Requirements
+- Python 3.8+
+- Unix-like terminal supporting ANSI escapes and Unicode (●)
+- No runtime third-party dependencies
+- Tests: `pytest` (dev-only; see `requirements.txt`)
 
 ## Project Structure
 ```
@@ -14,11 +20,11 @@ mypacman
 │       ├── board.py
 │       ├── player.py
 │       ├── input_handler.py
-│       ├── renderer.py
-│       └── constants.py
+│       └── renderer.py
 ├── tests
 │   ├── __init__.py
-│   └── test_game.py
+│   ├── test_game.py
+│   └── test_movement.py
 ├── specifications
 │   └── hld.md
 ├── pyproject.toml
@@ -28,34 +34,44 @@ mypacman
 ```
 
 ## Installation
-To set up the project, clone the repository and install the required dependencies:
+Clone the repository. Runtime has no external dependencies; installing `pytest` is only needed to run tests.
 
 ```bash
 git clone <repository-url>
 cd mypacman
-pip install -r requirements.txt
+pip install -r requirements.txt   # optional: for tests
 ```
 
 ## Usage
-To start the game, run the following command:
+Run the game from the repo root:
 
 ```bash
-python src/mypacman/main.py
+python -m src.mypacman.main
 
 # Or using the provided CLI launcher at repo root:
-## make it executable once:
 chmod +x mypacman-cli
-## then run:
 ./mypacman-cli
 ```
 
+Notes:
+- Ensure the terminal is at least 80x24; otherwise the game refuses to start.
+- Controls: arrow keys to move, `q` to quit.
+
 ## Gameplay
-- The game area is displayed in a terminal window, bordered by double-bar characters.
-- The main character (PP) is represented as a white ball and starts at the center of the game area.
-- Players can move the character using the arrow keys.
+- The game draws the full board once, then updates only the player cell to reduce flicker.
+- The player appears centered at start and moves within the inner area (clamped to borders).
+
+## Running Tests
+Execute the test suite with `pytest` from the repo root:
+
+```bash
+pytest -q
+```
+
+Included tests validate initial spawn, quit behavior, single-step movement, and border clamping.
 
 ## Contributing
-Contributions are welcome! Please submit a pull request or open an issue for any suggestions or improvements.
+Issues and pull requests are welcome.
 
 ## License
-This project is licensed under the MIT License. See the LICENSE file for more details.
+MIT License. See `LICENSE` if present.

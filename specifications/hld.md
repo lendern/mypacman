@@ -21,6 +21,7 @@ Décrire l'état actuel du jeu terminal "mypacman" et les choix d'architecture r
 - Terminal ciblé: Unix-like (ex. Ubuntu). Utilisation d'échappements ANSI et d'Unicode (●). 
 - Taille minimale d'écran: 80 colonnes x 24 lignes (le jeu vérifie la taille au démarrage).
 - Interaction: clavier (flèches), touche `q` pour quitter.
+- Dépendances: aucune dépendance runtime externe (rendu/entrées en standard lib). Les tests utilisent `pytest` uniquement.
 
 ## Architecture (résumé)
 - Board: modèle pur de l'aire de jeu, génération de la matrice avec bordures en double-bar.
@@ -48,7 +49,8 @@ Décrire l'état actuel du jeu terminal "mypacman" et les choix d'architecture r
 - Tests: lancer `pytest` depuis la racine pour exécuter la suite minimale.
 
 ## Tests et validation
-- Fichiers: `tests/test_game.py` inclut des tests unitaires non interactifs (spawn au centre, quitter sur `q`).
+- Fichiers: `tests/test_game.py` (spawn au centre, quitter sur `q`).
+- Mouvement/clamp: `tests/test_movement.py` vérifie un pas à droite et le bridage à la bordure droite.
 - Contraintes de test: `InputHandler` évite d'interroger `fileno()` à la construction pour rester compatible avec l'environnement pytest.
 
 ## Limitations et prochaines améliorations
@@ -59,4 +61,4 @@ Décrire l'état actuel du jeu terminal "mypacman" et les choix d'architecture r
 ## Historique des versions
 - 1.0: spécifications initiales (128x96).
 - 1.1: ajustements appliqués — passage à 80x24, architecture Board/Renderer/InputHandler/Game, rendu incrémental, robustesse d'entrée et CLI/tests ajoutés.
-
+- 1.1.1: nettoyage (suppression des constantes obsolètes, aucune dépendance `curses`) et ajout de tests mouvement+clamp.

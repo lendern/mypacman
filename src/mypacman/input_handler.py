@@ -79,17 +79,11 @@ class InputHandler:
         # If multiple sequences are present, pick the last arrow sequence seen.
         last_vec = None
         last_idx = -1
-        # If we previously applied a gap-fill, we'll ignore one occurrence of
-        # that last sequence in the buffer to avoid double-counting.
+        prev_last_seq = self._last_seq
         for seq, vec in self.ARROW_MAP.items():
-            # count occurrences
             occ = b.count(seq)
-            if occ > 0 and self._gap_filled_applied and self._last_seq == seq:
-                # consume one occurrence (the gap-filled movement)
-                occ -= 1
             if occ <= 0:
                 continue
-            # find the last occurrence index for this seq
             idx = b.rfind(seq)
             if idx > last_idx:
                 last_idx = idx
@@ -97,10 +91,18 @@ class InputHandler:
 
         if last_vec is not None:
             seq, vec = last_vec
-            # remember last real dir and schedule a single gap-fill on next poll
+            # If we just applied a gap-fill and this read corresponds to the
+            # same sequence, consume it without emitting movement, but reset
+            # flags so subsequent ticks continue smoothly.
+            if self._gap_filled_applied and prev_last_seq == seq:
+                self._gap_filled_applied = False
+                self._pending_gap_fill = True
+                self._last_dir = vec
+                self._last_seq = seq
+                return (0, 0)
+            # Normal path: emit movement and schedule a gap-fill for the next tick
             self._last_dir = vec
             self._last_seq = seq
-            # if we had previously applied a gap-fill, we've now consumed it
             self._gap_filled_applied = False
             self._pending_gap_fill = True
             return vec
