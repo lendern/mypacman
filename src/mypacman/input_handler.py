@@ -3,6 +3,7 @@ import tty
 import termios
 import select
 import os
+import time
 
 
 class InputHandler:
@@ -32,6 +33,10 @@ class InputHandler:
         # True if we emitted a gap-fill movement (so next real read should
         # ignore one occurrence to avoid double-counting)
         self._gap_filled_applied = False
+        # timestamp of last real arrow input (seconds)
+        self._last_real_time = 0.0
+        # window to synthesize repeats after a real press to avoid initial freeze
+        self._bridge_window = 0.18  # seconds
 
     def start(self):
         # obtain fd lazily (safer for pytest where stdin may be redirected)
@@ -51,9 +56,13 @@ class InputHandler:
 
     def get_direction(self, timeout=0.0):
         dr, _, _ = select.select([sys.stdin], [], [], timeout)
+        now = time.time()
         if not dr:
-            # if we recently saw a real key press, provide one extra movement to
-            # bridge the OS repeat delay, then stop until real repeats arrive
+            # While within the bridge window after a real keypress, keep emitting
+            # the last direction to avoid a freeze before OS repeats kick in.
+            if self._last_dir is not None and (now - self._last_real_time) <= self._bridge_window:
+                return self._last_dir
+            # Otherwise, if a one-shot gap-fill was scheduled, emit it once.
             if self._pending_gap_fill and self._last_dir is not None:
                 # mark that we applied the gap-fill so the next real read can
                 # ignore one occurrence to avoid double-counting
@@ -79,7 +88,6 @@ class InputHandler:
         # If multiple sequences are present, pick the last arrow sequence seen.
         last_vec = None
         last_idx = -1
-        prev_last_seq = self._last_seq
         for seq, vec in self.ARROW_MAP.items():
             occ = b.count(seq)
             if occ <= 0:
@@ -91,20 +99,12 @@ class InputHandler:
 
         if last_vec is not None:
             seq, vec = last_vec
-            # If we just applied a gap-fill and this read corresponds to the
-            # same sequence, consume it without emitting movement, but reset
-            # flags so subsequent ticks continue smoothly.
-            if self._gap_filled_applied and prev_last_seq == seq:
-                self._gap_filled_applied = False
-                self._pending_gap_fill = True
-                self._last_dir = vec
-                self._last_seq = seq
-                return (0, 0)
             # Normal path: emit movement and schedule a gap-fill for the next tick
             self._last_dir = vec
             self._last_seq = seq
             self._gap_filled_applied = False
             self._pending_gap_fill = True
+            self._last_real_time = now
             return vec
 
         # handle single chars: q to quit (check bytes for 'q' or 'Q')
