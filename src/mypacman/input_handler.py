@@ -27,6 +27,11 @@ class InputHandler:
         self._last_dir = None
         # if True, emit one extra movement on next poll to bridge OS repeat delay
         self._pending_gap_fill = False
+        # last raw sequence seen for the last_dir (bytes), used to adjust counts
+        self._last_seq = None
+        # True if we emitted a gap-fill movement (so next real read should
+        # ignore one occurrence to avoid double-counting)
+        self._gap_filled_applied = False
 
     def start(self):
         # obtain fd lazily (safer for pytest where stdin may be redirected)
@@ -50,7 +55,10 @@ class InputHandler:
             # if we recently saw a real key press, provide one extra movement to
             # bridge the OS repeat delay, then stop until real repeats arrive
             if self._pending_gap_fill and self._last_dir is not None:
+                # mark that we applied the gap-fill so the next real read can
+                # ignore one occurrence to avoid double-counting
                 self._pending_gap_fill = False
+                self._gap_filled_applied = True
                 return self._last_dir
             return (0, 0)
 
@@ -70,16 +78,32 @@ class InputHandler:
 
         # If multiple sequences are present, pick the last arrow sequence seen.
         last_vec = None
+        last_idx = -1
+        # If we previously applied a gap-fill, we'll ignore one occurrence of
+        # that last sequence in the buffer to avoid double-counting.
         for seq, vec in self.ARROW_MAP.items():
+            # count occurrences
+            occ = b.count(seq)
+            if occ > 0 and self._gap_filled_applied and self._last_seq == seq:
+                # consume one occurrence (the gap-filled movement)
+                occ -= 1
+            if occ <= 0:
+                continue
+            # find the last occurrence index for this seq
             idx = b.rfind(seq)
-            if idx != -1:
-                last_vec = (idx, vec)
+            if idx > last_idx:
+                last_idx = idx
+                last_vec = (seq, vec)
 
         if last_vec is not None:
+            seq, vec = last_vec
             # remember last real dir and schedule a single gap-fill on next poll
-            self._last_dir = last_vec[1]
+            self._last_dir = vec
+            self._last_seq = seq
+            # if we had previously applied a gap-fill, we've now consumed it
+            self._gap_filled_applied = False
             self._pending_gap_fill = True
-            return last_vec[1]
+            return vec
 
         # handle single chars: q to quit (check bytes for 'q' or 'Q')
         if b.find(b'q') != -1 or b.find(b'Q') != -1:
